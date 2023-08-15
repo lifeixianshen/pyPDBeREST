@@ -56,7 +56,6 @@ class pyPDBeREST(object):
         default_headers = user_agent
         default_content_type = content_type
         default_proxies = {}
-        default_method = 'GET'
         default_pretty_json = True
 
         # make these attributes public
@@ -76,6 +75,7 @@ class pyPDBeREST(object):
         if 'proxies' not in self.session_args:
             self.session_args['proxies'] = default_proxies
         if 'method' not in self.session_args:
+            default_method = 'GET'
             self.session_args['method'] = default_method
         if 'pretty_json' not in self.session_args:
             self.session_args['pretty_json'] = default_pretty_json
@@ -99,12 +99,12 @@ class pyPDBeREST(object):
         self.session.headers.update(self.session_args.pop('headers'))
 
         # store the name of all available top level endpoints
-        self.values = [n for n in api_endpoints.keys()]
+        self.values = list(api_endpoints.keys())
 
         # iterate over api_endpoints keys and add key to class namespace
         for top_name in api_endpoints.keys():
             # generate a new class object for each top level endpoint
-            values = [n for n in api_endpoints[top_name].keys()]
+            values = list(api_endpoints[top_name].keys())
             subclass = type(top_name, (object,), {'endpoints': _get_endpoints,
                                                   'values': values})
             # initiate the new subclass
@@ -154,11 +154,9 @@ class pyPDBeREST(object):
         data = ''
 
         # overriding general request method if it is specified in the function call
-        if 'method' in kwargs:
-            self.session.method = (kwargs['method']).upper()
-        else:
-            self.session.method = 'GET'
-
+        self.session.method = (
+            (kwargs['method']).upper() if 'method' in kwargs else 'GET'
+        )
         # build url from api_endpoint kwargs
         func = api_endpoints[top_name][fun_name]
 
@@ -168,22 +166,27 @@ class pyPDBeREST(object):
         # check up mandatory parameters
         for param in mandatory_params:
             if param not in kwargs:
-                logger.debug("'%s' param not specified. Mandatory params are %s"
-                             % (param, mandatory_params))
-                raise Exception("mandatory param '%s' not specified" % param)
+                logger.debug(
+                    f"'{param}' param not specified. Mandatory params are {mandatory_params}"
+                )
+                raise Exception(f"mandatory param '{param}' not specified")
 
         # also check for unrecognised parameters
         for param in kwargs:
             # skip the parameter 'method'
             if param not in mandatory_params and param != 'method':
-                logger.debug("'%s' param not recognised. Mandatory params are %s"
-                             % (param, mandatory_params))
-                raise Exception("mandatory param '%s' not specified" % param)
+                logger.debug(
+                    f"'{param}' param not recognised. Mandatory params are {mandatory_params}"
+                )
+                raise Exception(f"mandatory param '{param}' not specified")
 
         # get formatted urls
         if self.session.method == 'GET':
-            url = re.sub('\{\{(?P<m>[a-zA-Z_]+)\}\}', lambda m: "%s" % kwargs.get(m.group(1)),
-                         self.session.base_url + func['url'])
+            url = re.sub(
+                '\{\{(?P<m>[a-zA-Z_]+)\}\}',
+                lambda m: f"{kwargs.get(m.group(1))}",
+                self.session.base_url + func['url'],
+            )
         elif self.session.method == 'POST':
             url = re.sub('\{\{(?P<m>[a-zA-Z_]+)\}\}', '', self.session.base_url + func['url'])
 
@@ -193,11 +196,12 @@ class pyPDBeREST(object):
                 if key in ('pdbid', 'compid'):
                     data = kwargs[key]
         else:
-            raise NotImplementedError("Method '%s' not yet implemented. Available methods are: '%s'"
-                                      % (self.session.method, "', '".join(func['method'])))
+            raise NotImplementedError(
+                f"""Method '{self.session.method}' not yet implemented. Available methods are: '{"', '".join(func['method'])}'"""
+            )
 
         # logging url
-        logger.info("Resolved url: '%s'" % url)
+        logger.info(f"Resolved url: '{url}'")
 
         # now remove mandatory params from kwargs (because of get requests)
         # the url is already constructed and we don't need them in **kwargs
@@ -235,8 +239,9 @@ class pyPDBeREST(object):
                 resp = type('resp', (object,), {'status_code': 500})
                 resp = resp()
         else:
-            raise NotImplementedError("Method '%s' not yet implemented. Available methods are: '%s'"
-                                      % (self.session.method, "', '".join(func['method'])))
+            raise NotImplementedError(
+                f"""Method '{self.session.method}' not yet implemented. Available methods are: '{"', '".join(func['method'])}'"""
+            )
 
         # update response attribute
         self.response = resp
@@ -263,11 +268,11 @@ class pyPDBeREST(object):
                     doc = http_status_codes[500][1]
             raise ExceptionType(doc, error_code=resp.status_code)
 
-        if self.session.pretty_json:
-            content = json.dumps(resp.json(), sort_keys=False, indent=4)
-        else:
-            content = resp.json()
-        return content
+        return (
+            json.dumps(resp.json(), sort_keys=False, indent=4)
+            if self.session.pretty_json
+            else resp.json()
+        )
 
 
 def _get_endpoints(base):

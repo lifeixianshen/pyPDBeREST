@@ -32,8 +32,7 @@ class RestError(Exception):
         self.error_code = error_code
 
         if error_code is not None and error_code in http_status_codes:
-            msg = 'PDBe REST API returned a %s (%s), %s' % \
-                  (error_code, http_status_codes[error_code][0], msg)
+            msg = f'PDBe REST API returned a {error_code} ({http_status_codes[error_code][0]}), {msg}'
 
         super(RestError, self).__init__(msg)
 

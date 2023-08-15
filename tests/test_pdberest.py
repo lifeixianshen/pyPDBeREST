@@ -43,8 +43,11 @@ def response_mocker(kwargs, base_url, endpoint_url, status=200):
     kwargs, base url and endpoint url
     """
 
-    endpoint = re.sub('\{\{(?P<m>[a-zA-Z_]+)\}\}', lambda m: "%s" % kwargs.get(m.group(1)),
-                      base_url + endpoint_url)
+    endpoint = re.sub(
+        '\{\{(?P<m>[a-zA-Z_]+)\}\}',
+        lambda m: f"{kwargs.get(m.group(1))}",
+        base_url + endpoint_url,
+    )
     with responses.RequestsMock() as rsps:
         rsps.add(responses.GET, endpoint,
                  body="{'data': 'some json formatted output'}", status=status,
